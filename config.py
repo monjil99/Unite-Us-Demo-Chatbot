@@ -4,13 +4,23 @@ import os
 OPENAI_API_KEY = None
 
 def get_openai_api_key():
-    """Get OpenAI API key with lazy loading"""
+    """Get OpenAI API key with lazy loading - prioritizes user input"""
     global OPENAI_API_KEY
     
+    # First, check if user provided an API key in the UI
+    try:
+        import streamlit as st
+        user_key = st.session_state.get('user_api_key', '')
+        if user_key and user_key.strip():
+            return user_key.strip()
+    except (ImportError, AttributeError):
+        pass
+    
+    # If no user key, check cached global key
     if OPENAI_API_KEY:
         return OPENAI_API_KEY
     
-    # Try to get from Streamlit secrets first
+    # Try to get from Streamlit secrets
     try:
         import streamlit as st
         OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
@@ -35,7 +45,7 @@ def get_openai_api_key():
         return OPENAI_API_KEY
     
     # If still not found, raise error
-    raise ValueError("OPENAI_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
+    raise ValueError("OpenAI API key not found. Please provide your API key in the Settings panel or contact the administrator.")
 
 # Don't load API key at import time - only when requested
 # This prevents startup errors when the key isn't available yet

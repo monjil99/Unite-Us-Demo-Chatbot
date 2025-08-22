@@ -21,6 +21,14 @@ class ChatbotEngine:
         self.personal_info = PersonalInfo()
         self.address_info = AddressInfo()
     
+    def get_selected_model(self):
+        """Get the selected OpenAI model from session state"""
+        try:
+            import streamlit as st
+            return st.session_state.get('selected_model', 'gpt-4o-mini')
+        except (ImportError, AttributeError):
+            return 'gpt-4o-mini'  # Default fallback
+    
     def start_conversation(self, template: FormTemplate) -> str:
         """Start a new conversation with a form template"""
         self.current_template = template
@@ -111,7 +119,7 @@ class ChatbotEngine:
             """
             
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.get_selected_model(),
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant. Return ONLY the formatted question, no explanations or meta-commentary."},
                     {"role": "user", "content": prompt}
@@ -189,7 +197,7 @@ class ChatbotEngine:
             """
             
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.get_selected_model(),
                 messages=[
                     {"role": "system", "content": "You are an intelligent social services intake assistant. Always respond with valid JSON."},
                     {"role": "user", "content": prompt}

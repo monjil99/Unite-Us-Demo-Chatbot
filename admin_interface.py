@@ -12,6 +12,42 @@ def show_admin_interface():
     
     # Show user header with logout option
     show_user_header()
+    
+    # Add settings panel for admin
+    with st.expander("⚙️ Admin Settings", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 🔑 API Configuration")
+            api_key = st.text_input(
+                "OpenAI API Key",
+                type="password",
+                value=st.session_state.get('user_api_key', ''),
+                help="Enter your OpenAI API key for testing admin features.",
+                placeholder="sk-..."
+            )
+            if api_key:
+                st.session_state.user_api_key = api_key
+                st.success("✅ API key configured")
+        
+        with col2:
+            st.markdown("#### 🤖 Model Selection")
+            model_options = [
+                "gpt-4o-mini",
+                "gpt-4o", 
+                "gpt-4",
+                "gpt-4-turbo",
+                "o1-mini",
+                "o1-preview"
+            ]
+            selected_model = st.selectbox(
+                "OpenAI Model",
+                options=model_options,
+                index=0,
+                help="Choose the OpenAI model for admin operations"
+            )
+            st.session_state.selected_model = selected_model
+    
     st.markdown("---")
     
     # Initialize data manager

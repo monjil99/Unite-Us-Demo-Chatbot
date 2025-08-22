@@ -16,24 +16,62 @@ def show_client_interface():
     user_info = get_user_info()
     st.markdown(f"Welcome to **{user_info['business_name']}** intake portal!")
     
-    # Add behavior mode toggle
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("### 🎭 Chatbot Personality")
-        behavior_mode = st.toggle(
-            "**Formal Communication Style**",
-            value=False,
-            help="Toggle between casual/friendly (OFF) and formal/professional (ON) communication style"
-        )
+    # Add settings panel
+    with st.expander("⚙️ Settings", expanded=False):
+        col1, col2 = st.columns(2)
         
-        if behavior_mode:
-            st.info("🎩 **Formal Mode:** Professional, structured communication")
-            st.markdown("I'm here to assist you with completing your intake form in a professional manner.")
-        else:
-            st.info("😊 **Casual Mode:** Friendly, conversational communication")
-            st.markdown("I'm here to help you complete your intake form in a friendly, conversational way!")
+        with col1:
+            st.markdown("#### 🔑 API Configuration")
+            api_key = st.text_input(
+                "OpenAI API Key",
+                type="password",
+                value=st.session_state.get('user_api_key', ''),
+                help="Enter your OpenAI API key. If empty, will use server default (if available).",
+                placeholder="sk-..."
+            )
+            if api_key:
+                st.session_state.user_api_key = api_key
+                st.success("✅ API key configured")
+            
+            # OpenAI Model selection
+            model_options = [
+                "gpt-4o-mini",
+                "gpt-4o", 
+                "gpt-4",
+                "gpt-4-turbo",
+                "o1-mini",
+                "o1-preview"
+            ]
+            selected_model = st.selectbox(
+                "OpenAI Model",
+                options=model_options,
+                index=0,
+                help="Choose the OpenAI model to use for the chatbot"
+            )
+            st.session_state.selected_model = selected_model
+            
+            # Show model info
+            if selected_model in ["o1-mini", "o1-preview"]:
+                st.info("🧠 **O1 Models:** Advanced reasoning capabilities, may take longer to respond")
+            elif selected_model == "gpt-4o":
+                st.info("⚡ **GPT-4o:** Fast, powerful, multimodal capabilities")
+            elif selected_model == "gpt-4o-mini":
+                st.info("💨 **GPT-4o-mini:** Fast and efficient, recommended for most use cases")
+        
+        with col2:
+            st.markdown("#### 🎭 Chatbot Personality")
+            behavior_mode = st.toggle(
+                "**Formal Communication Style**",
+                value=False,
+                help="Toggle between casual/friendly (OFF) and formal/professional (ON) communication style"
+            )
+            
+            if behavior_mode:
+                st.info("🎩 **Formal Mode:** Professional, structured communication")
+            else:
+                st.info("😊 **Casual Mode:** Friendly, conversational communication")
     
-    # Store behavior mode in session state
+    # Store settings in session state
     st.session_state.behavior_mode = "formal" if behavior_mode else "casual"
     
     # Initialize components
