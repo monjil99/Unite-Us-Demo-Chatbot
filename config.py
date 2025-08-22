@@ -44,8 +44,8 @@ def get_openai_api_key():
     if OPENAI_API_KEY:
         return OPENAI_API_KEY
     
-    # If still not found, raise error
-    raise ValueError("OpenAI API key not found. Please provide your API key in the Settings panel or contact the administrator.")
+    # If still not found, raise error with helpful message
+    raise ValueError("Please enter your OpenAI API key in the Settings panel above to use the chatbot.")
 
 # Don't load API key at import time - only when requested
 # This prevents startup errors when the key isn't available yet

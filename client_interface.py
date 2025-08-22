@@ -6,6 +6,27 @@ from chatbot_engine_new import ChatbotEngine
 import json
 from auth import is_authenticated, get_user_templates, get_user_info, show_user_header
 
+def get_or_create_chatbot():
+    """Get existing chatbot or create new one with current API key"""
+    try:
+        # Try to get existing chatbot
+        if 'chatbot' in st.session_state:
+            return st.session_state.chatbot
+        
+        # Create new chatbot - this will use the API key from settings
+        chatbot = ChatbotEngine()
+        st.session_state.chatbot = chatbot
+        return chatbot
+        
+    except ValueError as e:
+        # API key not available
+        st.error(f"🔑 **API Key Required:** {str(e)}")
+        st.info("💡 **Please enter your OpenAI API key in the Settings panel above to continue.**")
+        return None
+    except Exception as e:
+        st.error(f"❌ **Error creating chatbot:** {str(e)}")
+        return None
+
 def show_client_interface():
     """Client interface for interactive chatbot conversation"""
     st.title("💬 Interactive Intake Assistant")
@@ -78,8 +99,8 @@ def show_client_interface():
     if 'data_manager' not in st.session_state:
         st.session_state.data_manager = DataManager()
     
-    if 'chatbot' not in st.session_state:
-        st.session_state.chatbot = ChatbotEngine()
+    # Don't initialize chatbot until user provides API key or starts conversation
+    # This prevents the API key error on page load
     
     if 'conversation_started' not in st.session_state:
         st.session_state.conversation_started = False
@@ -88,7 +109,9 @@ def show_client_interface():
         st.session_state.messages = []
     
     data_manager = st.session_state.data_manager
-    chatbot = st.session_state.chatbot
+    chatbot = get_or_create_chatbot()
+    if not chatbot:
+        return  # Stop if no valid chatbot (API key issue)
     
     # Organization selection (if conversation not started)
     if not st.session_state.conversation_started:
@@ -319,7 +342,9 @@ def show_quick_actions(chatbot):
         if st.button("🔄 Start over", use_container_width=True):
             st.session_state.conversation_started = False
             st.session_state.messages = []
-            st.session_state.chatbot = ChatbotEngine()
+            # Clear existing chatbot to force recreation with new template
+            if 'chatbot' in st.session_state:
+                del st.session_state.chatbot
             if 'selected_template' in st.session_state:
                 del st.session_state.selected_template
             st.rerun()
@@ -426,7 +451,9 @@ def submit_application(chatbot, data_manager):
         if st.button("🆕 Start New Application", type="primary", use_container_width=True):
             st.session_state.conversation_started = False
             st.session_state.messages = []
-            st.session_state.chatbot = ChatbotEngine()
+            # Clear existing chatbot to force recreation with new template
+            if 'chatbot' in st.session_state:
+                del st.session_state.chatbot
             st.rerun()
             
     except Exception as e:
