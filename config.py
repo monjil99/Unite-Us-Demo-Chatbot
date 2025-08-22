@@ -1,30 +1,48 @@
 import os
 
-# OpenAI Configuration - for cloud deployment and local development
-try:
-    # Try to import streamlit for cloud deployment
-    import streamlit as st
-    # Try to get the API key from Streamlit secrets first
-    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
-    if not OPENAI_API_KEY:
-        raise KeyError("OPENAI_API_KEY not found in secrets")
-except (ImportError, FileNotFoundError, KeyError):
-    # Fallback to environment variables for local development
+# Global variable to store the API key
+OPENAI_API_KEY = None
+
+def get_openai_api_key():
+    """Get OpenAI API key with lazy loading"""
+    global OPENAI_API_KEY
+    
+    if OPENAI_API_KEY:
+        return OPENAI_API_KEY
+    
+    # Try to get from Streamlit secrets first
+    try:
+        import streamlit as st
+        OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+        if OPENAI_API_KEY:
+            return OPENAI_API_KEY
+    except (ImportError, FileNotFoundError, KeyError, AttributeError):
+        pass
+    
+    # Fallback to environment variables
     try:
         from dotenv import load_dotenv
         load_dotenv()
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        # If still not found, raise an error for security
-        if not OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
+        if OPENAI_API_KEY:
+            return OPENAI_API_KEY
     except ImportError:
-        # If python-dotenv is not available, check environment
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        if not OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
-
-if not OPENAI_API_KEY:
+        pass
+    
+    # Check environment directly
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    if OPENAI_API_KEY:
+        return OPENAI_API_KEY
+    
+    # If still not found, raise error
     raise ValueError("OPENAI_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
+
+# For backward compatibility, try to load the key but don't fail on import
+try:
+    OPENAI_API_KEY = get_openai_api_key()
+except ValueError:
+    # API key will be loaded when first needed
+    pass
 
 # File paths
 SAMPLE_DATA_DIR = "Sample Data"

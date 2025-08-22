@@ -10,8 +10,10 @@ class ChatbotEngine:
     """AI-powered chatbot for interactive form filling using GPT-4o mini for all intelligence"""
     
     def __init__(self):
-        openai.api_key = config.OPENAI_API_KEY
-        self.client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        # Lazy load API key when initializing the client
+        api_key = config.get_openai_api_key()
+        openai.api_key = api_key
+        self.client = openai.OpenAI(api_key=api_key)
         self.conversation_history = []
         self.current_question = None
         self.current_template = None
