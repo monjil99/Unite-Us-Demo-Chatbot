@@ -37,12 +37,8 @@ def get_openai_api_key():
     # If still not found, raise error
     raise ValueError("OPENAI_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
 
-# For backward compatibility, try to load the key but don't fail on import
-try:
-    OPENAI_API_KEY = get_openai_api_key()
-except ValueError:
-    # API key will be loaded when first needed
-    pass
+# Don't load API key at import time - only when requested
+# This prevents startup errors when the key isn't available yet
 
 # File paths
 SAMPLE_DATA_DIR = "Sample Data"
