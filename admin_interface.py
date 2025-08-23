@@ -67,8 +67,8 @@ def show_admin_interface():
     
     admin_page = st.sidebar.selectbox(
         "Choose Action",
-        ["View Templates", "View Applications", "Create New Template", "Edit Template", "Manage Questions"],
-        index=["View Templates", "View Applications", "Create New Template", "Edit Template", "Manage Questions"].index(default_page) if default_page in ["View Templates", "View Applications", "Create New Template", "Edit Template", "Manage Questions"] else 0
+        ["View Templates", "View Applications", "Upload Excel Template", "Create New Template", "Edit Template", "Manage Questions"],
+        index=["View Templates", "View Applications", "Upload Excel Template", "Create New Template", "Edit Template", "Manage Questions"].index(default_page) if default_page in ["View Templates", "View Applications", "Upload Excel Template", "Create New Template", "Edit Template", "Manage Questions"] else 0
     )
     
     # Update session state
@@ -78,6 +78,8 @@ def show_admin_interface():
         show_templates_overview(data_manager)
     elif admin_page == "View Applications":
         show_submitted_applications(data_manager)
+    elif admin_page == "Upload Excel Template":
+        upload_excel_template(data_manager)
     elif admin_page == "Create New Template":
         create_new_template(data_manager)
     elif admin_page == "Edit Template":
@@ -724,6 +726,195 @@ def show_submitted_applications(data_manager):
                     file_name=f"{organization.replace(' ', '_')}_applications_{datetime.now().strftime('%Y%m%d')}.json",
                     mime="application/json"
                 )
+
+def upload_excel_template(data_manager):
+    """Upload and process Excel files to create new form templates"""
+    from auth import get_user_info
+    import pandas as pd
+    from data_models import Question, FormTemplate
+    import uuid
+    from datetime import datetime
+    
+    st.header("📤 Upload Excel Template")
+    
+    # Get current user's organization
+    user_info = get_user_info()
+    if not user_info:
+        st.error("Unable to get user information")
+        return
+    
+    organization = user_info['business_name']
+    
+    st.markdown(f"### Upload intake form for: **{organization}**")
+    
+    # Instructions
+    with st.expander("📋 Excel Format Instructions", expanded=True):
+        st.markdown("""
+        **Required Columns:**
+        - `Question Number` - Sequential numbers (1, 2, 3...)
+        - `Question` - The actual question text
+        - `Field Type` - Type of input (radio, dropdown, text, textarea, etc.)
+        - `Response Options` - Comma-separated options for multiple choice (leave empty for text fields)
+        
+        **Supported Field Types:**
+        - `radio` - Radio button selection
+        - `dropdown` / `drop down-single select` - Dropdown menu
+        - `checkbox` / `multi select` - Multiple selections
+        - `text` / `free text box` - Single line text input
+        - `textarea` - Multi-line text input
+        
+        **Example:**
+        ```
+        Question Number | Question                    | Field Type | Response Options
+        1              | What is your age?           | text       | 
+        2              | Preferred contact method    | radio      | Email,Phone,Text
+        3              | Services needed             | checkbox   | Counseling,Housing,Legal Aid
+        ```
+        """)
+    
+    # File uploader
+    uploaded_file = st.file_uploader(
+        "Choose an Excel file (.xlsx)",
+        type=['xlsx'],
+        help="Upload an Excel file with your intake form questions"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Read the Excel file
+            df = pd.read_excel(uploaded_file)
+            
+            # Display preview
+            st.subheader("📊 File Preview")
+            st.dataframe(df.head())
+            
+            # Validate required columns
+            required_columns = ['Question Number', 'Question', 'Field Type']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
+                return
+            
+            # Show file statistics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Questions", len(df))
+            with col2:
+                unique_types = df['Field Type'].nunique()
+                st.metric("Field Types", unique_types)
+            with col3:
+                multiple_choice = len(df[df['Response Options'].notna()])
+                st.metric("Multiple Choice", multiple_choice)
+            
+            # Template details form
+            st.subheader("📝 Template Details")
+            
+            with st.form("template_details"):
+                template_name = st.text_input(
+                    "Template Name",
+                    value=f"{organization} - {uploaded_file.name.replace('.xlsx', '')}",
+                    help="Give your template a descriptive name"
+                )
+                
+                template_description = st.text_area(
+                    "Description",
+                    value=f"Intake form template uploaded from {uploaded_file.name}",
+                    help="Describe what this intake form is for"
+                )
+                
+                submit_template = st.form_submit_button("🚀 Create Template", type="primary")
+                
+                if submit_template:
+                    if not template_name.strip():
+                        st.error("Please provide a template name")
+                        return
+                    
+                    # Process the Excel data
+                    questions = []
+                    question_counter = 1
+                    
+                    for index, row in df.iterrows():
+                        try:
+                            # Parse question number
+                            try:
+                                question_num = int(row['Question Number'])
+                            except (ValueError, TypeError):
+                                question_num = question_counter
+                            
+                            # Parse response options
+                            response_options = []
+                            if pd.notna(row.get('Response Options', '')):
+                                options_str = str(row['Response Options']).strip()
+                                if options_str:
+                                    response_options = [opt.strip() for opt in options_str.split(',') if opt.strip()]
+                            
+                            # Create question object
+                            question = Question(
+                                id=f"q_{question_num}",
+                                number=question_num,
+                                question_text=str(row['Question']).strip(),
+                                field_type=str(row['Field Type']).strip(),
+                                field_responses=response_options
+                            )
+                            
+                            questions.append(question)
+                            question_counter += 1
+                            
+                        except Exception as e:
+                            st.warning(f"⚠️ Skipping row {index + 1}: {str(e)}")
+                            continue
+                    
+                    if not questions:
+                        st.error("❌ No valid questions found in the Excel file")
+                        return
+                    
+                    # Create form template
+                    template = FormTemplate(
+                        id=str(uuid.uuid4()),
+                        name=template_name.strip(),
+                        organization=organization,
+                        description=template_description.strip(),
+                        questions=questions,
+                        standard_fields=["first_name", "last_name", "email", "phone"],
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+                    
+                    # Save template
+                    try:
+                        data_manager.save_template(template)
+                        
+                        st.success(f"""
+                        ✅ **Template Created Successfully!**
+                        
+                        **Name:** {template_name}
+                        **Questions:** {len(questions)}
+                        **Organization:** {organization}
+                        **Template ID:** {template.id}
+                        """)
+                        
+                        # Show summary
+                        st.subheader("📋 Template Summary")
+                        for i, q in enumerate(questions[:5], 1):  # Show first 5 questions
+                            st.write(f"**Q{i}:** {q.question_text}")
+                            if q.field_responses:
+                                st.write(f"   Options: {', '.join(q.field_responses)}")
+                        
+                        if len(questions) > 5:
+                            st.write(f"... and {len(questions) - 5} more questions")
+                        
+                        # Option to preview the template
+                        if st.button("👀 Preview Template"):
+                            st.session_state.admin_page = "View Templates"
+                            st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error saving template: {str(e)}")
+        
+        except Exception as e:
+            st.error(f"❌ Error reading Excel file: {str(e)}")
+            st.info("💡 Please ensure your file is a valid Excel (.xlsx) format with the required columns.")
 
 if __name__ == "__main__":
     show_admin_interface()
