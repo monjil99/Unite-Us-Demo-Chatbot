@@ -905,9 +905,7 @@ def upload_excel_template(data_manager):
                             st.write(f"... and {len(questions) - 5} more questions")
                         
                         # Option to preview the template
-                        if st.button("👀 Preview Template"):
-                            st.session_state.admin_page = "View Templates"
-                            st.rerun()
+                        st.info("✅ Template created successfully! Go to 'View Templates' to see your new template.")
                         
                     except Exception as e:
                         st.error(f"❌ Error saving template: {str(e)}")
@@ -915,6 +913,12 @@ def upload_excel_template(data_manager):
         except Exception as e:
             st.error(f"❌ Error reading Excel file: {str(e)}")
             st.info("💡 Please ensure your file is a valid Excel (.xlsx) format with the required columns.")
+    
+    # Add navigation button outside of any form
+    st.markdown("---")
+    if st.button("👀 Go to View Templates", key="nav_to_templates"):
+        st.session_state.admin_page = "View Templates"
+        st.rerun()
 
 if __name__ == "__main__":
     show_admin_interface()
